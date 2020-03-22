@@ -1599,7 +1599,7 @@ int             main(const int argc, char** argv)
     safe_strncpy(source, g_Mapname, _MAX_PATH);
     safe_strncat(source, ".bsp", _MAX_PATH);
     safe_strncpy(portalfile, g_Mapname, _MAX_PATH);
-    safe_strncat(portalfile, ".prt", _MAX_PATH);
+    safe_strncat(portalfile, "_viscache.prt", _MAX_PATH); // Load mapname_viscache.prt so the map editor can use mapname.prt -Admer
 
 #ifdef ZHLT_NETVIS
 

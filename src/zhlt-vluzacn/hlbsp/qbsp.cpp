@@ -1859,6 +1859,18 @@ int             main(const int argc, char** argv)
                 Usage();
             }
         }
+		else if ( !strcasecmp( argv[ i ], "-debug" ) )
+		{
+			Log("\n---------------------------------------"
+				"\nDEBUG MODE ACTIVATED"
+				"\nAttach to this process in your debugger"
+				"\n---------------------------------------" );
+
+		#ifdef SYSTEM_WIN32
+			Sleep( 15000 );
+		#endif // SYSTEM_WIN32
+
+		}
 		else if (!strcasecmp (argv[i], "-lang"))
 		{
 			if (i + 1 < argc)

@@ -155,7 +155,8 @@ void            MakeHeadnodePortals(node_t* node, const vec3_t mins, const vec3_
  * ==============================================================================
  */
 
-static FILE*    pf;
+static FILE*    visPortalCache; // mapname_viscache.prt <- HLVIS loads this
+static FILE*	portalFile; // mapname.prt <- This portal file can be opened in the map editor
 static FILE *pf_view;
 extern bool g_viewportal;
 static int      num_visleafs;                              // leafs the player can be in
@@ -205,18 +206,23 @@ static void     WritePortalFile_r(const node_t* const node)
 						Warning ("Backward portal @");
 						w->Print ();
 					}
-                    fprintf(pf, "%u %i %i ", w->m_NumPoints, p->nodes[1]->visleafnum, p->nodes[0]->visleafnum);
+                    fprintf( visPortalCache, "%u %i %i ", w->m_NumPoints, p->nodes[1]->visleafnum, p->nodes[0]->visleafnum );
+                    fprintf( portalFile, "%u %i %i ", w->m_NumPoints, p->nodes[1]->visleafnum, p->nodes[0]->visleafnum );
                 }
                 else
                 {
-                    fprintf(pf, "%u %i %i ", w->m_NumPoints, p->nodes[0]->visleafnum, p->nodes[1]->visleafnum);
+                    fprintf( visPortalCache, "%u %i %i ", w->m_NumPoints, p->nodes[0]->visleafnum, p->nodes[1]->visleafnum );
+                    fprintf( portalFile, "%u %i %i ", w->m_NumPoints, p->nodes[0]->visleafnum, p->nodes[1]->visleafnum );
                 }
 
                 for (i = 0; i < w->m_NumPoints; i++)
                 {
-                    fprintf(pf, "(%f %f %f) ", w->m_Points[i][0], w->m_Points[i][1], w->m_Points[i][2]);
+                    fprintf( visPortalCache, "(%f %f %f) ", w->m_Points[i][0], w->m_Points[i][1], w->m_Points[i][2]);
+                    fprintf( portalFile, "(%f %f %f) ", w->m_Points[i][0], w->m_Points[i][1], w->m_Points[i][2] );
                 }
-                fprintf(pf, "\n");
+                fprintf( visPortalCache, "\n" );
+                fprintf( portalFile, "\n" );
+
 				if (g_viewportal)
 				{
 					vec3_t center, center1, center2;
@@ -329,50 +335,79 @@ static void WriteLeafCount_r (node_t *node)
 			return;
 		}
 		int count = CountChildLeafs_r (node);
-		fprintf (pf, "%i\n", count);
+		fprintf (visPortalCache, "%i\n", count);
 	}
 }
+
+void UTIL_GetPortalCacheName( char* portalCacheName )
+{
+	char newCacheName[ _MAX_PATH ];
+	for ( int i = 0; i < _MAX_PATH; i++ )
+		newCacheName[ i ] = 0;
+
+	size_t len = strlen( g_portfilename )-4; // name - .prt
+	
+	for ( size_t i = 0; i < len; i++ )
+		newCacheName[ i ] = g_portfilename[ i ];
+
+	strcat( newCacheName, "_viscache.prt" );
+	strcpy( portalCacheName, newCacheName );
+
+	Log( "\nPortal cache name: %s\n\n", newCacheName );
+}
+
 /*
  * ================
  * WritePortalfile
  * ================
  */
-void            WritePortalfile(node_t* headnode)
+void WritePortalfile( node_t* headnode )
 {
-    // set the visleafnum field in every leaf and count the total number of portals
-    num_visleafs = 0;
-    num_visportals = 0;
-    NumberLeafs_r(headnode);
+	char portalCacheName[ _MAX_PATH ];
+	UTIL_GetPortalCacheName( portalCacheName );
 
-    // write the file
-    pf = fopen(g_portfilename, "w");
-    if (!pf)
-    {
-        Error("Error writing portal file %s", g_portfilename);
-    }
-	if (g_viewportal)
+	// set the visleafnum field in every leaf and count the total number of portals
+	num_visleafs = 0;
+	num_visportals = 0;
+	NumberLeafs_r( headnode );
+
+	// write the files
+	visPortalCache = fopen( portalCacheName, "w" );
+
+	if ( !visPortalCache )
 	{
-		char filename[_MAX_PATH];
-		safe_snprintf(filename, _MAX_PATH, "%s_portal.pts", g_Mapname);
-		pf_view = fopen (filename, "w");
-		if (!pf_view)
+		Error( "Error writing portal file %s", g_portfilename );
+	}
+
+	if ( g_viewportal )
+	{
+		char filename[ _MAX_PATH ];
+		safe_snprintf( filename, _MAX_PATH, "%s_portal.pts", g_Mapname );
+		pf_view = fopen( filename, "w" );
+		if ( !pf_view )
 		{
-			Error ("Couldn't open %s", filename);
+			Error( "Couldn't open %s", filename );
 		}
-		Log ("Writing '%s' ...\n", filename);
+		Log( "Writing '%s' ...\n", filename );
 	}
 
-    fprintf(pf, "%i\n", num_visleafs);
-    fprintf(pf, "%i\n", num_visportals);
+	fprintf( visPortalCache, "%i\n", num_visleafs );
+	fprintf( visPortalCache, "%i\n", num_visportals );
 
-	WriteLeafCount_r (headnode);
-    WritePortalFile_r(headnode);
-    fclose(pf);
-	if (g_viewportal)
+	portalFile = fopen( g_portfilename, "w" );
+	fprintf( portalFile, "%i\n", num_visleafs );
+	fprintf( portalFile, "%i\n", num_visportals );
+
+	WriteLeafCount_r( headnode );
+	WritePortalFile_r( headnode );
+	fclose( visPortalCache );
+	fclose( portalFile );
+
+	if ( g_viewportal )
 	{
-		fclose (pf_view);
+		fclose( pf_view );
 	}
-    Log("BSP generation successful, writing portal file '%s'\n", g_portfilename);
+	Log( "BSP generation successful, writing portal file '%s'\n", g_portfilename );
 }
 
 //===================================================
