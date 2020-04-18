@@ -34,6 +34,8 @@
 #include <windows.h>
 #endif
 
+#include <chrono>
+
 #include "scriplib.h"
 
 char*           g_Program = "Uninitialized variable ::g_Program";
@@ -42,6 +44,8 @@ char            g_Mapname[_MAX_PATH] = "Uninitialized variable ::g_Mapname";
 developer_level_t g_developer = DEFAULT_DEVELOPER;
 bool            g_verbose = DEFAULT_VERBOSE;
 bool            g_log = DEFAULT_LOG;
+
+BlindMode		g_blind = BlindMode::Off;
 
 unsigned long   g_clientid = 0;
 unsigned long   g_nextclientid = 0;
@@ -56,6 +60,8 @@ FILE *conout = NULL;
 int				g_lang_count = 0;
 const int		g_lang_max = 1024;
 char*			g_lang[g_lang_max][2];
+
+std::chrono::duration<float> g_printLagTime(0.0f);
 
 ////////
 
@@ -266,6 +272,9 @@ void CDECL      CloseLog()
 //      on compared to the time taken to compile the map, so its negligable.
 void            Safe_WriteLog(const char* const message)
 {
+	if ( g_blind > BlindMode::Off )
+		return;
+
     const char* c;
     
     if (!CompileLog)
@@ -288,8 +297,11 @@ void            Safe_WriteLog(const char* const message)
 }
 #endif
 
-void            WriteLog(const char* const message)
+void            WriteLog(const char* const message, bool force)
 {
+
+	if ( g_blind > BlindMode::Off && !force )
+		return;
 
 #ifndef SYSTEM_WIN32
     if (CompileLog)
@@ -308,6 +320,8 @@ void            WriteLog(const char* const message)
 		fprintf (conout, "%s", message);
 		fflush (conout);
 	}
+
+
 }
 
 // =====================================================================================
@@ -382,7 +396,7 @@ void CDECL FORMAT_PRINTF(2,3)      Fatal(assume_msgs msgid, const char* const wa
     va_end(argptr);
 
     safe_snprintf(message2, MAX_MESSAGE, "%s%s\n", Localize ("Error: "), message);
-    WriteLog(message2);
+    WriteLog(message2, true);
     LogError(message2);
 
     {
@@ -418,7 +432,7 @@ void CDECL FORMAT_PRINTF(1,2)      PrintOnce(const char* const warning, ...)
     va_end(argptr);
 
     safe_snprintf(message2, MAX_MESSAGE, "%s%s\n", Localize ("Error: "), message);
-    WriteLog(message2);
+    WriteLog(message2, true);
     LogError(message2);
 }
 
@@ -527,6 +541,11 @@ static void     DisplayDeveloperLevel()
 // =====================================================================================
 void CDECL FORMAT_PRINTF(1,2)      Log(const char* const warning, ...)
 {
+	if ( g_blind > BlindMode::Off )
+		return;
+
+	auto startTime = std::chrono::system_clock::now();
+
     char            message[MAX_MESSAGE];
 
     va_list         argptr;
@@ -535,7 +554,10 @@ void CDECL FORMAT_PRINTF(1,2)      Log(const char* const warning, ...)
     vsnprintf(message, MAX_MESSAGE, Localize (warning), argptr);
     va_end(argptr);
 
-    WriteLog(message);
+	WriteLog( message );
+
+	auto endTime = std::chrono::system_clock::now();
+	g_printLagTime += (endTime - startTime);
 }
 
 // =====================================================================================
@@ -580,15 +602,29 @@ void            Banner()
         MODIFICATIONS_STRING);
 }
 
+void ToggleTemporaryBlind()
+{
+	if ( g_blind == BlindMode::On )
+		g_blind = BlindMode::TemporaryOff;
+
+	else if ( g_blind == BlindMode::TemporaryOff )
+		g_blind = BlindMode::On;
+}
+
 // =====================================================================================
 //  LogStart
 // =====================================================================================
 void            LogStart(int argc, char** argv)
 {
     Banner();
+
+	ToggleTemporaryBlind();
+
     Log("-----  BEGIN  %s -----\n", g_Program);
     LogArgs(argc, argv);
     DisplayDeveloperLevel();
+
+	ToggleTemporaryBlind();
 }
 
 // =====================================================================================
@@ -596,7 +632,12 @@ void            LogStart(int argc, char** argv)
 // =====================================================================================
 void            LogEnd()
 {
+	ToggleTemporaryBlind();
+
+	Log( "\nTime elapsed on logging console messages: %f", g_printLagTime.count() );
     Log("\n-----   END   %s -----\n\n\n\n", g_Program);
+
+	ToggleTemporaryBlind();
 }
 
 // =====================================================================================
@@ -644,6 +685,8 @@ void LogTimeElapsed(float elapsed_time)
 
     seconds_to_hhmm(elapsed_time, days, hours, minutes, seconds);
 
+	ToggleTemporaryBlind();
+
     if (days)
     {
         Log("%.2f seconds elapsed [%ud %uh %um %us]\n", elapsed_time, days, hours, minutes, seconds);
@@ -660,6 +703,8 @@ void LogTimeElapsed(float elapsed_time)
     {
         Log("%.2f seconds elapsed\n", elapsed_time);
     }
+
+	ToggleTemporaryBlind();
 }
 
 #ifdef SYSTEM_WIN32
@@ -720,6 +765,9 @@ int InitConsole (int argc, char **argv)
 #endif
 void CDECL FORMAT_PRINTF(1,2) PrintConsole(const char* const warning, ...)
 {
+	if ( g_blind > BlindMode::Off )
+		return;
+
     char            message[MAX_MESSAGE];
 
     va_list         argptr;

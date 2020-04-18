@@ -21,6 +21,13 @@ typedef enum
 }
 developer_level_t;
 
+enum BlindMode
+{
+	TemporaryOff,
+	Off,
+	On
+};
+
 //
 // log.c globals
 //
@@ -35,6 +42,7 @@ extern char     g_Mapname[_MAX_PATH];
 extern developer_level_t g_developer;
 extern bool          g_verbose;
 extern bool          g_log;
+extern BlindMode	 g_blind;
 extern unsigned long g_clientid;                           // Client id of this program
 extern unsigned long g_nextclientid;                       // Client id of next client to spawn from this server
 
@@ -49,7 +57,7 @@ extern void     CheckForErrorLog();
 
 extern void CDECL OpenLog(int clientid);
 extern void CDECL CloseLog();
-extern void     WriteLog(const char* const message);
+extern void     WriteLog(const char* const message, bool force = false);
 
 extern void     CheckFatal();
 
@@ -72,6 +80,8 @@ extern void CDECL FORMAT_PRINTF(2,3) Fatal(assume_msgs msgid, const char* const 
 extern void CDECL FORMAT_PRINTF(1,2) Warning(const char* const warning, ...);
 
 extern void CDECL FORMAT_PRINTF(1,2) PrintOnce(const char* const message, ...);
+
+extern void		ToggleTemporaryBlind();
 
 extern void     LogStart(const int argc, char** argv);
 extern void     LogEnd();

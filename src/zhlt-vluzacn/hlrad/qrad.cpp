@@ -3248,6 +3248,10 @@ int             main(const int argc, char** argv)
                 Usage();
             }
         }
+		else if ( !strcasecmp( argv[i], "-blind" ) )
+		{
+			g_blind = BlindMode::On;
+		}
 #ifdef SYSTEM_WIN32
         else if (!strcasecmp(argv[i], "-estimate"))
         {
