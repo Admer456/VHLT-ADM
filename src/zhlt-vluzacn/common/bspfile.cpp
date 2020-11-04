@@ -1574,38 +1574,49 @@ void            UnparseEntities()
 		bool *lightneedcompare = (bool *)malloc (g_numentities * sizeof (bool));
 		hlassume (lightneedcompare != NULL, assume_NoMemory);
 		memset (lightneedcompare, 0, g_numentities * sizeof(bool));
+
 		for (i = g_numentities - 1; i > -1; i--)
 		{
 			entity_t *ent = &g_entities[i];
 			const char *classname = ValueForKey (ent, "classname");
 			const char *targetname = ValueForKey (ent, "targetname");
 			int style = IntForKey (ent, "style");
+
+			// Skip anything that doesn't have a targetname, is not a light, light_spot or light_environment
 			if (!targetname[0] || strcmp (classname, "light") && strcmp (classname, "light_spot") && strcmp (classname, "light_environment"))
 				continue;
+
+			// Compare lights with the same name but different styles
 			for (j = i + 1; j < g_numentities; j++)
 			{
 				if (!lightneedcompare[j])
 					continue;
+
 				entity_t *ent2 = &g_entities[j];
 				const char *targetname2 = ValueForKey (ent2, "targetname");
 				int style2 = IntForKey (ent2, "style");
+
 				if (style == style2 && !strcmp (targetname, targetname2))
 					break;
 			}
+			
 			if (j < g_numentities)
 			{
 				DeleteKey (ent, "targetname");
 				count++;
 			}
+			
 			else
 			{
 				lightneedcompare[i] = true;
 			}
 		}
+
 		if (count > 0)
 		{
 			Log ("%d redundant named lights optimized.\n", count);
 		}
+		
 		free (lightneedcompare);
 	}
 #endif
