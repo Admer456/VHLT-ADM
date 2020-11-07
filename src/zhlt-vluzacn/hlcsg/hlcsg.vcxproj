@@ -43,12 +43,12 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>..\$(Configuration)\$(Platform)\bin\</OutDir>
+    <OutDir>..\bin\$(Configuration).$(PlatformTarget)\</OutDir>
     <IntDir>..\$(Configuration)\$(Platform)\int\$(ProjectName)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>..\$(Configuration)\$(Platform)\bin\</OutDir>
+    <OutDir>..\bin\$(Configuration).$(PlatformTarget)\</OutDir>
     <IntDir>..\$(Configuration)\$(Platform)\int\$(ProjectName)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
@@ -86,7 +86,7 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <SubSystem>Console</SubSystem>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
-      <OutputFile>..\$(Configuration)\$(Platform)\bin\$(TargetFileName)</OutputFile>
+      <OutputFile>..\bin\$(Configuration).$(PlatformTarget)\$(TargetFileName)</OutputFile>
       <AdditionalDependencies>binmode.obj;%(AdditionalDependencies)</AdditionalDependencies>
       <StackReserveSize>4194304</StackReserveSize>
       <StackCommitSize>1048576</StackCommitSize>
@@ -127,7 +127,7 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <SubSystem>Console</SubSystem>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
-      <OutputFile>..\$(Configuration)\$(Platform)\bin\$(TargetFileName)</OutputFile>
+      <OutputFile>..\bin\$(Configuration).$(PlatformTarget)\$(TargetFileName)</OutputFile>
       <AdditionalDependencies>binmode.obj;%(AdditionalDependencies)</AdditionalDependencies>
       <StackReserveSize>4194304</StackReserveSize>
       <StackCommitSize>1048576</StackCommitSize>
