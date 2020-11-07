@@ -1311,9 +1311,6 @@ static void     CheckForNoClip()
     int             spawnflags;
 	int				count = 0;
 
-    if (!g_bClipNazi) 
-        return; // NO CLIP FOR YOU!!!
-
     for (i = 0; i < g_numentities; i++)
     {
         if (!g_entities[i].numbrushes) 
@@ -1324,6 +1321,8 @@ static void     CheckForNoClip()
 
         ent = &g_entities[i];
 
+		// TODO: Let the mapper specify which entity properties
+		// can go under the clip economy
         strcpy_s(entclassname, ValueForKey(ent, "classname"));
         spawnflags = atoi(ValueForKey(ent, "spawnflags"));
 		int skin = IntForKey(ent, "skin"); //vluzacn
@@ -1350,6 +1349,8 @@ static void     CheckForNoClip()
 				|| (spawnflags & 64) && (!strcmp(entclassname, "func_rotating"))
 			))
 		{
+			Verbose( "## Marked a %s (entity slot %i) for noclip", entclassname, i );
+
 			MarkEntForNoclip(ent);
 			count++;
 		}
@@ -1365,7 +1366,7 @@ static void     CheckForNoClip()
 */
     }
 
-    Log("%i entities discarded from clipping hulls\n", count);
+    Log( "%i entities discarded from clipping hulls\n", count );
 }
 
 // =====================================================================================
@@ -1570,8 +1571,8 @@ static void     Usage()
 	Log("    -scale #         : Scale the world. Use at your own risk.\n");
     Log("    mapfile          : The mapfile to compile\n\n");
 	Log("\n" );
-	Log("	-- Custom VHLT-A Parameters --\n");
-	Log("	-maxentrange	  : The entity range limit (by default +-32768, vanilla HL uses +-4096)\n");
+	Log("	 -- Custom VHLT-A Parameters --\n");
+	Log("    -worldextent     : The entity range limit (by default +-32768, vanilla HL uses +-4096)\n");
 
     exit(1);
 }
@@ -1764,7 +1765,7 @@ int             main(const int argc, char** argv)
             }
         }
 
-		else if ( !strcasecmp( argv[ i ], "-maxentrange" ) )
+		else if ( !strcasecmp( argv[ i ], "-maxentrange" ) || ( !strcasecmp( argv[i], "-worldextent" ) ) )
 		{
 			g_iMaxEntityRange = atoi(argv[ ++i ]);
 		}
@@ -1895,8 +1896,6 @@ int             main(const int argc, char** argv)
         { 
             g_bWadAutoDetect = true;
         }
-
-
 
         else if (!strcasecmp(argv[i], "-nowadtextures"))
         {
@@ -2305,12 +2304,14 @@ int             main(const int argc, char** argv)
         return 0;
     }
 
-    CheckForNoClip(); 
+	if ( g_bClipNazi )
+	{
+		CheckForNoClip();
+	}
 
     // createbrush
     NamedRunThreadsOnIndividual(g_nummapbrushes, g_estimate, CreateBrush);
     CheckFatal();
-
 
     // boundworld
     BoundWorld();
