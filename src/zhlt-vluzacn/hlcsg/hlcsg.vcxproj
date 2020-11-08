@@ -148,6 +148,7 @@
     <ClCompile Include="..\common\winding.cpp" />
     <ClCompile Include="ansitoutf8.cpp" />
     <ClCompile Include="autowad.cpp" />
+    <ClCompile Include="blocklight.cpp" />
     <ClCompile Include="brush.cpp" />
     <ClCompile Include="brushunion.cpp" />
     <ClCompile Include="hullfile.cpp" />
@@ -166,6 +167,7 @@
     <ClInclude Include="..\common\bspfile.h" />
     <ClInclude Include="..\common\cmdlib.h" />
     <ClInclude Include="..\common\cmdlinecfg.h" />
+    <ClInclude Include="blocklight.hpp" />
     <ClInclude Include="csg.h" />
     <ClInclude Include="..\common\filelib.h" />
     <ClInclude Include="..\common\hlassert.h" />

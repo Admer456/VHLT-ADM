@@ -198,6 +198,8 @@ typedef enum
 
 	CONTENTS_BOUNDINGBOX = -19, // similar to CONTENTS_ORIGIN
 
+	CONTENTS_BLOCKLIGHT = -30, // only RAD deals with this; no clipping, no BSP vertex contributions etc.
+
 	CONTENTS_TOEMPTY = -32,
 }
 contents_t;

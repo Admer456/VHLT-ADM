@@ -758,7 +758,7 @@ void SortSides (brushhull_t *h)
 	free (isused);
 	free (sorted);
 }
-void            MakeHullFaces(const brush_t* const b, brushhull_t *h)
+void MakeHullFaces(const brush_t* const b, brushhull_t *h)
 {
     bface_t*        f;
     bface_t*        f2;
@@ -880,7 +880,7 @@ bool            MakeBrushPlanes(brush_t* b)
             }
         }
 
-        f = (bface_t*)Alloc(sizeof(*f));                             // TODO: This leaks
+        f = (bface_t*)Alloc(sizeof(*f)); // TODO: This leaks
 
         f->planenum = planenum;
         f->plane = &g_mapplanes[planenum];
@@ -955,6 +955,8 @@ static contents_t TextureContents(const char* const name)
 		return CONTENTS_NULL;
 	if ( !strncasecmp( name, "bolidhint", 9 ) )
 		return CONTENTS_NULL;
+	if ( !strcasecmp( name, "blocklight" ) )
+		return CONTENTS_BLOCKLIGHT;
 	if ( !strncasecmp( name, "splitface", 9 ) )
 		return CONTENTS_HINT;
 	if ( !strncasecmp( name, "hint", 4 ) )
@@ -1015,7 +1017,8 @@ const char*     ContentsToString(const contents_t type)
         return "TRANSLUCENT";
     case CONTENTS_HINT:
         return "HINT";
-
+	case CONTENTS_BLOCKLIGHT:
+		return "BLOCKLIGHT";
     case CONTENTS_NULL:
         return "NULL";
 
@@ -1053,23 +1056,28 @@ contents_t      CheckBrushContents(const brush_t* const b)
 	}
 	best_i = 0;
     best_contents = TextureContents(s->td.name);
+
 	// Difference between SKIP, ContentEmpty:
 	// SKIP doesn't split space in bsp process, ContentEmpty splits space normally.
 	if (!(strncasecmp (s->td.name, "content", 7) && strncasecmp (s->td.name, "skip", 4)))
 		assigned = true;
-    s++;
+    
+	s++;
+	
 	for (i = 1; i < b->numsides; i++, s++)
     {
         contents_t contents_consider = TextureContents(s->td.name);
 		if (assigned)
 			continue;
+
 		if (!(strncasecmp (s->td.name, "content", 7) && strncasecmp (s->td.name, "skip", 4)))
 		{
 			best_i = i;
 			best_contents = contents_consider;
 			assigned = true;
 		}
-        if (contents_consider > best_contents)
+        
+		if (contents_consider > best_contents)
         {
 			best_i = i;
             // if our current surface contents is better (larger) than our best, make it our best.
@@ -1138,6 +1146,7 @@ contents_t      CheckBrushContents(const brush_t* const b)
         case CONTENTS_ORIGIN:
 		case CONTENTS_BOUNDINGBOX:
 		case CONTENTS_HINT:
+		case CONTENTS_BLOCKLIGHT:
 		case CONTENTS_TOEMPTY:
             break;
         default:
@@ -1175,9 +1184,7 @@ void CreateBrush(const int brushnum) //--vluzacn
 	MakeBrushPlanes(b);
 	MakeHullFaces(b, &b->hulls[0]);
 
-	if (contents == CONTENTS_HINT)
-		return;
-	if (contents == CONTENTS_TOEMPTY)
+	if ( contents == CONTENTS_HINT || contents == CONTENTS_TOEMPTY || contents == CONTENTS_BLOCKLIGHT )
 		return;
 
 	if (g_noclip)

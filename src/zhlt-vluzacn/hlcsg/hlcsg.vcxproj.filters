@@ -83,6 +83,9 @@
     <ClCompile Include="wadpath.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="blocklight.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\template\basictypes.h">
@@ -138,6 +141,9 @@
     </ClInclude>
     <ClInclude Include="..\common\winding.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="blocklight.hpp">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

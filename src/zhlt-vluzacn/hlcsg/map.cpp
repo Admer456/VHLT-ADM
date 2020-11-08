@@ -1,12 +1,15 @@
 //#pragma warning(disable: 4018) // '<' : signed/unsigned mismatch
 
 #include "csg.h"
+#include "blocklight.hpp"
 
 int             g_nummapbrushes;
 brush_t         g_mapbrushes[MAX_MAP_BRUSHES];
 
 int             g_numbrushsides;
 side_t          g_brushsides[MAX_MAP_SIDES];
+
+
 
 int             g_nMapFileVersion;
 
@@ -164,12 +167,15 @@ static void ParseBrush(entity_t* mapent)
     b->brushnum = g_nummapbrushes - mapent->firstbrush - 1;
 
     b->noclip = 0;
+
 	if (IntForKey(mapent, "zhlt_noclip"))
 	{
 		b->noclip = 1;
 	}
+
 	b->cliphull = 0;
 	b->bevel = false;
+
 	{
 		b->detaillevel = IntForKey (mapent, "zhlt_detaillevel");
 		b->chopdown = IntForKey (mapent, "zhlt_chopdown");
@@ -177,6 +183,7 @@ static void ParseBrush(entity_t* mapent)
 		b->clipnodedetaillevel = IntForKey (mapent, "zhlt_clipnodedetaillevel");
 		b->coplanarpriority = IntForKey (mapent, "zhlt_coplanarpriority");
 		bool wrong = false;
+
 		if (b->detaillevel < 0)
 		{
 			wrong = true;
@@ -197,6 +204,7 @@ static void ParseBrush(entity_t* mapent)
 			wrong = true;
 			b->clipnodedetaillevel = 0;
 		}
+
 		if (wrong)
 		{
 			Warning ("Entity %i, Brush %i: incorrect settings for detail brush.",
@@ -222,11 +230,15 @@ static void ParseBrush(entity_t* mapent)
 
     mapent->numbrushes++;
 
-	ok = GetToken(true);
-    while (ok)
+	ok = GetToken( true );
+
+	// Parse stuff
+    while ( ok )
     {
         g_TXcommand = 0;
-        if (!strcmp(g_token, "}"))
+        
+		// End of brush
+		if (!strcmp(g_token, "}"))
         {
             break;
         }
@@ -238,6 +250,7 @@ static void ParseBrush(entity_t* mapent)
         b->numsides++;
 
 		side->bevel = false;
+
         // read the three point plane definition
         for (i = 0; i < 3; i++)
         {
@@ -245,6 +258,7 @@ static void ParseBrush(entity_t* mapent)
             {
                 GetToken(true);
             }
+
             if (strcmp(g_token, "("))
             {
                 Error("Parsing Entity %i, Brush %i, Side %i : Expecting '(' got '%s'",
@@ -267,9 +281,11 @@ static void ParseBrush(entity_t* mapent)
             }
         }
 
-        // read the     texturedef
+        // read the texturedef
         GetToken(false);
         _strupr(g_token);
+
+		// Apply tooltexture-specific properties
 		{
 			if (!strncasecmp (g_token, "NOCLIP", 6) || !strncasecmp (g_token, "NULLNOCLIP", 10))
 			{
@@ -285,6 +301,13 @@ static void ParseBrush(entity_t* mapent)
 			{
 				strcpy (g_token, "NULL");
 				side->bevel = true;
+			}
+			if ( !strcasecmp( g_token, "BLOCKLIGHT" ) )
+			{
+				// Add this face to the list of casualties
+				//gBlockLightFaces.push_back( side );
+
+				strcpy( g_token, "SKIP" ); // BLOCKLIGHT becomes SKIP to avoid clipping and other stuff
 			}
 			if ( !strncasecmp( g_token, "BOLIDHINT", 9 ) )
 			{
@@ -310,9 +333,11 @@ static void ParseBrush(entity_t* mapent)
 				strcpy (g_token, "SKIP");
 			}
 		}
-        safe_strncpy(side->td.name, g_token, sizeof(side->td.name));
+        
+		safe_strncpy(side->td.name, g_token, sizeof(side->td.name));
 
-        if (g_nMapFileVersion < 220)                       // Worldcraft 2.1-, Radiant
+		// Worldcraft 2.1-, Radiant
+        if (g_nMapFileVersion < 220)
         {
             GetToken(false);
             side->td.vects.valve.shift[0] = atof(g_token);
@@ -325,7 +350,7 @@ static void ParseBrush(entity_t* mapent)
             GetToken(false);
             side->td.vects.valve.scale[1] = atof(g_token);
         }
-        else                                               // Worldcraft 2.2+
+        else // Worldcraft 2.2+
         {
             // texture U axis
             GetToken(false);
@@ -382,8 +407,9 @@ static void ParseBrush(entity_t* mapent)
             side->td.vects.valve.scale[1] = atof(g_token);
         }
 
-        ok = GetToken(true);                               // Done with line, this reads the first item from the next line
+        ok = GetToken(true); // Done with line, this reads the first item from the next line
 
+		// QuArK texture coordinates
         if ((g_TXcommand == '1' || g_TXcommand == '2'))
         {
             // We are QuArK mode and need to translate some numbers to align textures its way
@@ -436,9 +462,12 @@ static void ParseBrush(entity_t* mapent)
             side->td.vects.quark.vects[1][3] = -DotProduct(side->td.vects.quark.vects[1], side->planepts[0]);
         }
 
-        side->td.txcommand = g_TXcommand;                  // Quark stuff, but needs setting always
+		// Quark stuff, but needs setting always
+        side->td.txcommand = g_TXcommand;
     };
-	if (b->cliphull != 0) // has CLIP* texture
+
+	// Has CLIP* texture
+	if (b->cliphull != 0)
 	{
 		unsigned int mask_anyhull = 0;
 		for (int h = 1; h < NUM_HULLS; h++)
@@ -451,7 +480,10 @@ static void ParseBrush(entity_t* mapent)
 		}
 	}
 
-    b->contents = contents = CheckBrushContents(b);
+	// Get brush contents so we can determine what to do with it next
+    b->contents = contents = CheckBrushContents( b );
+
+	// Any special tooltextures become NULL
 	for (j = 0; j < b->numsides; j++)
 	{
 		side = &g_brushsides[b->firstside + j];
@@ -459,6 +491,7 @@ static void ParseBrush(entity_t* mapent)
 			&& strncasecmp(side->td.name,"HINT",4) && strncasecmp(side->td.name,"SKIP",4)
 			&& strncasecmp(side->td.name,"SOLIDHINT",9)
 			&& strncasecmp(side->td.name,"BOLIDHINT",9)
+			//&& strcasecmp(side->td.name,"BLOCKLIGHT")
 			&& strncasecmp(side->td.name,"SPLITFACE",9)
 			&& strncasecmp(side->td.name,"BOUNDINGBOX",11)
 			&& strncasecmp(side->td.name,"CONTENT",7) && strncasecmp(side->td.name,"SKY",3)
@@ -467,6 +500,19 @@ static void ParseBrush(entity_t* mapent)
 			safe_strncpy(side->td.name,"NULL",sizeof(side->td.name));
 		}
 	}
+
+	// Add any BLOCKLIGHT faces into a separate array
+	for ( j = 0; j < b->numsides; j++ )
+	{
+		side = &g_brushsides[b->firstside + j];
+
+		if ( strcasecmp( side->td.name, "BLOCKLIGHT" ) )
+		{
+			BlockLight::MarkSide( b->firstside + j, side );
+		}
+	}
+
+	// Change any SPLITFACE into SKIP
 	for (j = 0; j < b->numsides; j++)
 	{
 		// change to SKIP now that we have set brush content.
@@ -476,6 +522,8 @@ static void ParseBrush(entity_t* mapent)
 			strcpy (side->td.name, "SKIP");
 		}
 	}
+
+	// If there's any CONTENT* texture, strip it off, become NULL
 	for (j = 0; j < b->numsides; j++)
 	{
 		side = &g_brushsides[b->firstside + j];
@@ -484,6 +532,8 @@ static void ParseBrush(entity_t* mapent)
 			strcpy (side->td.name, "NULL");
 		}
 	}
+
+	// Prevent lightmap allocation on trigger brushes
 	if (g_nullifytrigger)
 	{
 		for (j = 0; j < b->numsides; j++)
@@ -496,12 +546,19 @@ static void ParseBrush(entity_t* mapent)
 		}
 	}
 
-    //
+	// Admer: blocklight brushes are removed for everything but RAD
+	if ( contents == CONTENTS_BLOCKLIGHT )
+	{
+		// We'll do nothing here
+		b->noclip = true;
+		b->detaillevel = 0;
+
+		BlockLight::MarkBrush( b );
+	}
+
     // origin brushes are removed, but they set
     // the rotation origin for the rest of the brushes
     // in the entity
-    //
-
     if (contents == CONTENTS_ORIGIN)
     {
 		if (*ValueForKey (mapent, "origin"))
@@ -522,6 +579,7 @@ static void ParseBrush(entity_t* mapent)
             b->hulls[i].faces = NULL;
         }
 
+		// TODO: Allow mappers to set implicit ORIGINs without ORIGIN brushes
         if (b->entitynum != 0)  // Ignore for WORLD (code elsewhere enforces no ORIGIN in world message)
         {
             VectorAdd(b->hulls[0].bounds.m_Mins, b->hulls[0].bounds.m_Maxs, origin);
@@ -531,6 +589,8 @@ static void ParseBrush(entity_t* mapent)
             SetKeyValue(&g_entities[b->entitynum], "origin", string);
         }
     }
+
+	// zhlt_usemodel feature
 	if (*ValueForKey (&g_entities[b->entitynum], "zhlt_usemodel"))
 	{
 		memset (&g_brushsides[b->firstside], 0, b->numsides * sizeof (side_t));
@@ -547,11 +607,15 @@ static void ParseBrush(entity_t* mapent)
 		mapent->numbrushes--;
 		return;
 	}
+
+	// info_hullshape feature
 	if (!strcmp (ValueForKey (&g_entities[b->entitynum], "classname"), "info_hullshape"))
 	{
 		// all brushes should be erased, but not now.
 		return;
 	}
+
+	// Boundingbox texture
     if (contents == CONTENTS_BOUNDINGBOX)
     {
 		if (*ValueForKey (mapent, "zhlt_minsmaxs"))
@@ -560,9 +624,11 @@ static void ParseBrush(entity_t* mapent)
 					b->originalentitynum, b->originalbrushnum
 					);
 		}
+
         char            string[MAXTOKEN];
         vec3_t          mins, maxs;
 		char			*origin = NULL;
+
 		if (*ValueForKey (mapent, "origin"))
 		{
 			origin = strdup (ValueForKey (mapent, "origin"));
@@ -593,6 +659,8 @@ static void ParseBrush(entity_t* mapent)
 			free (origin);
 		}
     }
+
+	// Sky stuff
 	if (g_skyclip && b->contents == CONTENTS_SKY && !b->noclip)
 	{
 		brush_t *newb = CopyCurrentBrush (mapent, b);
@@ -604,6 +672,8 @@ static void ParseBrush(entity_t* mapent)
 			strcpy (side->td.name, "NULL");
 		}
 	}
+
+	// CLIPping busines
 	if (b->cliphull != 0 && b->contents == CONTENTS_TOEMPTY)
 	{
 		// check for mix of CLIP and normal texture
@@ -618,19 +688,21 @@ static void ParseBrush(entity_t* mapent)
 			if (strncasecmp (side->td.name, "SKIP", 4))
 				mixed = true;
 		}
+
 		if (mixed)
 		{
 			brush_t *newb = CopyCurrentBrush (mapent, b);
 			newb->cliphull = 0;
 		}
+
 		b->contents = CONTENTS_SOLID;
+
 		for (j = 0; j < b->numsides; j++)
 		{
 			side = &g_brushsides[b->firstside + j];
 			strcpy (side->td.name, "NULL");
 		}
 	}
-
 }
 
 
@@ -669,24 +741,23 @@ bool            ParseMapEntity()
 
     while (1)
     {
-        if (!GetToken(true))
+        if ( !GetToken( true ) )
             Error("ParseEntity: EOF without closing brace");
 
-        if (!strcmp(g_token, "}"))  // end of our context
+        if ( !strcmp(g_token, "}") )  // end of our context
             break;
 
-        if (!strcmp(g_token, "{"))  // must be a brush
+        if ( !strcmp(g_token, "{") )  // must be a brush
         {
-			ParseBrush (mapent);
+			ParseBrush( mapent );
 			g_numparsedbrushes++;
-
         }
         else                        // else assume an epair
         {
             e = ParseEpair();
 			if (mapent->numbrushes > 0) Warning ("Error: ParseEntity: Keyvalue comes after brushes."); //--vluzacn
 
-            if (!strcmp(e->key, "mapversion"))
+            if ( !strcmp(e->key, "mapversion") )
             {
                 g_nMapFileVersion = atoi(e->value);
             }
@@ -1058,18 +1129,18 @@ unsigned int    CountEngineEntities()
 //      wrapper for LoadScriptFile
 //      parse in script entities
 // =====================================================================================
-const char*     ContentsToString(const contents_t type);
+const char* ContentsToString(const contents_t type);
 
-void            LoadMapFile(const char* const filename)
+void LoadMapFile(const char* const filename)
 {
     unsigned num_engine_entities;
 
     LoadScriptFile(filename);
 
     g_numentities = 0;
-
 	g_numparsedentities = 0;
-    while (ParseMapEntity())
+    
+	while ( ParseMapEntity() )
     {
 		g_numparsedentities++;
     }
@@ -1097,7 +1168,5 @@ void            LoadMapFile(const char* const filename)
     Verbose("Load map:%s\n", filename);
     Verbose("%5i brushes\n", g_nummapbrushes);
     Verbose("%5i map entities \n", g_numentities - num_engine_entities);
-    Verbose("%5i engine entities\n", num_engine_entities);
-
-    // AJM: added in 
+    Verbose("%5i engine entities\n", num_engine_entities); // AJM: added in 
 }
