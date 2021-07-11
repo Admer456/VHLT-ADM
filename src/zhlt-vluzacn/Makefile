@@ -95,6 +95,7 @@ COMMON_FLAGS = -Wall -O2 -fno-strict-aliasing -pthread -pipe
 
 HLCSG_CPPFILES = \
 			$(COMMON_CPPFILES) \
+			hlcsg/blocklight.cpp \
 			hlcsg/ansitoutf8.cpp \
 			hlcsg/autowad.cpp \
 			hlcsg/brush.cpp \
