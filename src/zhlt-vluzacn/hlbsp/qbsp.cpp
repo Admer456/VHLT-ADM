@@ -13,6 +13,8 @@
 #include <windows.h>
 #endif
 
+#include <thread>
+
 #include "bsp5.h"
 
 /*
@@ -1859,18 +1861,19 @@ int             main(const int argc, char** argv)
                 Usage();
             }
         }
-		else if ( !strcasecmp( argv[ i ], "-debug" ) )
-		{
-			Log("\n---------------------------------------"
-				"\nDEBUG MODE ACTIVATED"
-				"\nAttach to this process in your debugger"
-				"\n---------------------------------------" );
+        else if ( !strcasecmp( argv[i], "-debug" ) )
+        {
+            Log( "\n---------------------------------------"
+                "\nDEBUG MODE ACTIVATED"
+                "\nAttach to this process in your debugger"
+                "\n---------------------------------------" );
 
-		#ifdef SYSTEM_WIN32
-			Sleep( 15000 );
-		#endif // SYSTEM_WIN32
-
-		}
+            for ( int i = 12; i > 0; i-- )
+            {
+                Log( "%i...\n", i );
+                std::this_thread::sleep_for( std::chrono::milliseconds( 1000 ) );
+            }
+        }
 		else if (!strcasecmp (argv[i], "-lang"))
 		{
 			if (i + 1 < argc)
