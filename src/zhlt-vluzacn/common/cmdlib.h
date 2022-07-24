@@ -9,15 +9,15 @@
 //#define MODIFICATIONS_STRING "Submit detailed bug reports to (merlinis@bigpond.net.au)\n"
 //#define MODIFICATIONS_STRING "Submit detailed bug reports to (amckern@yahoo.com)\n"
 //#define MODIFICATIONS_STRING "Submit detailed bug reports to (vluzacn@163.com)\n"
-#define MODIFICATIONS_STRING "Submit detailed bug reports to (admer456@gmail.com)\n"
+#define MODIFICATIONS_STRING "Submit detailed bug reports at 'https://github.com/Admer456/VHLT-ADM/issues'\n"
 
 #ifdef _DEBUG
-#define ZHLT_VERSIONSTRING "v0.1 dbg"
+#define ZHLT_VERSIONSTRING "v1.0.1 dbg"
 #else
-#define ZHLT_VERSIONSTRING "v0.1"
+#define ZHLT_VERSIONSTRING "v1.0.1"
 #endif
 
-#define HACK_VERSIONSTRING "ADM01" //"VL34" //--vluzacn // Admer
+#define HACK_VERSIONSTRING "ADM101" //"VL34" //--vluzacn // Admer
 
 #if !defined (HLCSG) && !defined (HLBSP) && !defined (HLVIS) && !defined (HLRAD) && !defined (RIPENT) //--vluzacn
 #error "You must define one of these in the settings of each project: HLCSG, HLBSP, HLVIS, HLRAD, RIPENT. The most likely cause is that you didn't load the project from the sln file."
