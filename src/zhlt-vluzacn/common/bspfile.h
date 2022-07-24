@@ -365,7 +365,7 @@ extern bool		CalcFaceExtents_test ();
 #else
 extern void		LoadExtentFile (const char *const filename);
 #endif
-extern void		GetFaceExtents (int facenum, int mins_out[2], int maxs_out[2]);
+extern void		GetFaceExtents (int facenum, int mins_out[2], int maxs_out[2], int* realMinsOut = nullptr, int* realMaxsOut = nullptr);
 extern int		ParseImplicitTexinfoFromTexture (int miptex);
 extern int		ParseTexinfoForFace (const dface_t *f);
 extern void		DeleteEmbeddedLightmaps ();

@@ -631,7 +631,7 @@ bool CalcFaceExtents_test ()
 	return ok;
 }
 
-void GetFaceExtents (int facenum, int mins_out[2], int maxs_out[2])
+void GetFaceExtents (int facenum, int mins_out[2], int maxs_out[2], int* realMinsOut, int* realMaxsOut)
 {
 	CorrectFPUPrecision ();
 
@@ -680,6 +680,18 @@ void GetFaceExtents (int facenum, int mins_out[2], int maxs_out[2])
 				maxs[j] = val;
 			}
 		}
+	}
+
+	if ( realMinsOut )
+	{
+		realMinsOut[0] = mins[0];
+		realMinsOut[1] = mins[1];
+	}
+
+	if ( realMaxsOut )
+	{
+		realMaxsOut[0] = maxs[0];
+		realMaxsOut[1] = maxs[1];
 	}
 
 	for (i = 0; i < 2; i++)
@@ -800,7 +812,53 @@ typedef struct lightmapblock_s
 	int allocated[BLOCK_WIDTH];
 }
 lightmapblock_t;
-void DoAllocBlock (lightmapblock_t *blocks, int w, int h)
+
+struct LightmapEfficiency
+{
+	float pixelEfficiency{ -1.0f };
+	float uvEfficiency{ -1.0f };
+};
+
+constexpr size_t MaxLightmaps = 64U;
+constexpr size_t LightmapSize = 128U;
+constexpr size_t LightmapSizeAbsolute = LightmapSize * TEXTURE_STEP;
+
+static LightmapEfficiency gLightmapEfficiencies[64];
+static LightmapEfficiency gLightmapEfficiencyAverage;
+
+#include <unordered_map>
+
+struct LightmapBlockTracker final
+{
+	void Update( int addedExtents )
+	{
+		extents += addedExtents;
+
+		efficiency = float( extents ) / (128.0f * 128.0f);
+	}
+
+	void UpdateUv( int addedExtents )
+	{
+		uvExtents += addedExtents;
+
+		uvEfficiency = float( uvExtents ) / (LightmapSizeAbsolute * LightmapSizeAbsolute);
+	}
+
+	// UV efficiency is calculated as:
+	// (true extents) / ((128 * 128) * 64)
+	// It gives us a more accurate image
+	float uvEfficiency = -1.0f;
+	int uvExtents = 0;
+	
+	// Lightmap efficiency is calculated as:
+	// (extents) / (128 * 128)
+	float efficiency = -1.0f;
+	int extents = 0;
+};
+
+static std::unordered_map<lightmapblock_t*, LightmapBlockTracker> gLightmapTracking;
+
+void DoAllocBlock (lightmapblock_t *blocks, int w, int h, int* realExtents = nullptr)
 {
 	lightmapblock_t *block;
 	// code from Quake
@@ -837,8 +895,16 @@ void DoAllocBlock (lightmapblock_t *blocks, int w, int h)
 			{
 				block->allocated[x + i] = best + h;
 			}
+
+			gLightmapTracking[block].Update( w * h );
+			if ( realExtents )
+			{
+				gLightmapTracking[block].UpdateUv( realExtents[0] * realExtents[1] );
+			}
+
 			return;
 		}
+
 		if (!block->next)
 		{ // need to allocate a new block
 			if (!block->used)
@@ -852,11 +918,13 @@ void DoAllocBlock (lightmapblock_t *blocks, int w, int h)
 		}
 	}
 }
+
 int CountBlocks ()
 {
 #if !defined (PLATFORM_CAN_CALC_EXTENT) && !defined (HLRAD)
 	return -1; // otherwise GetFaceExtents will error
 #endif
+
 	lightmapblock_t *blocks;
 	blocks = (lightmapblock_t *)malloc (sizeof (lightmapblock_t));
 	hlassume (blocks != NULL, assume_NoMemory);
@@ -874,15 +942,19 @@ int CountBlocks ()
 			continue;
 		}
 		int extents[2];
+		int realExtents[2];
 		vec3_t point;
 		{
 			int bmins[2];
 			int bmaxs[2];
+			int realMins[2];
+			int realMaxs[2];
 			int i;
-			GetFaceExtents (k, bmins, bmaxs);
+			GetFaceExtents (k, bmins, bmaxs, realMins, realMaxs);
 			for (i = 0; i < 2; i++)
 			{
 				extents[i] = (bmaxs[i] - bmins[i]) * TEXTURE_STEP;
+				realExtents[i] = realMaxs[i] - realMins[i];
 			}
 
 			VectorClear (point);
@@ -899,21 +971,59 @@ int CountBlocks ()
 			Warning ("Bad surface extents %d/%d at position (%.0f,%.0f,%.0f)", extents[0], extents[1], point[0], point[1], point[2]);
 			continue;
 		}
-		DoAllocBlock (blocks, (extents[0] / TEXTURE_STEP) + 1, (extents[1] / TEXTURE_STEP) + 1);
+
+		DoAllocBlock (blocks, (extents[0] / TEXTURE_STEP) + 1, (extents[1] / TEXTURE_STEP) + 1, realExtents);
 	}
+
+	gLightmapEfficiencyAverage.pixelEfficiency = 0.0f;
+	gLightmapEfficiencyAverage.uvEfficiency = 0.0f;
+
 	int count = 0;
 	lightmapblock_t *next;
 	for (; blocks; blocks = next)
 	{
 		if (blocks->used)
 		{
+			if ( count < 64 )
+			{
+				gLightmapEfficiencies[count].pixelEfficiency = gLightmapTracking[blocks].efficiency;
+				gLightmapEfficiencies[count].uvEfficiency = gLightmapTracking[blocks].uvEfficiency;
+			
+				if ( gLightmapEfficiencies[count].pixelEfficiency >= 0.0f )
+				{
+					gLightmapEfficiencyAverage.pixelEfficiency += gLightmapEfficiencies[count].pixelEfficiency;
+					gLightmapEfficiencyAverage.uvEfficiency += gLightmapEfficiencies[count].uvEfficiency;
+				}
+			}
+
 			count++;
 		}
+
+		// This thing gets freed now so oof
+		gLightmapTracking.erase( blocks );
+
 		next = blocks->next;
 		free (blocks);
 	}
+
+	int efficiencyCount = 0;
+	for ( const auto& efficiency : gLightmapEfficiencies )
+	{
+		if ( efficiency.pixelEfficiency >= 0.0f )
+		{
+			efficiencyCount++;
+		}
+	}
+
+	if ( efficiencyCount > 1 )
+	{
+		gLightmapEfficiencyAverage.pixelEfficiency /= float( efficiencyCount );
+		gLightmapEfficiencyAverage.uvEfficiency /= float( efficiencyCount );
+	}
+
 	return count;
 }
+
 bool NoWadTextures ()
 {
 	// copied from loadtextures.cpp
@@ -1029,6 +1139,61 @@ static int      GlobUsage(const char* const szItem, const int itemstorage, const
     return itemstorage;
 }
 
+static void PrintLightmapEfficiency( float luxelEfficiency, float texelEfficiency )
+{
+	texelEfficiency /= luxelEfficiency;
+
+	Log( "Lightmap occupancy: " );
+	if ( luxelEfficiency > 0.95f )
+	{
+		Log( "very high\n- Squeezing in any new details will generate new blocks." );
+	}
+	else if ( luxelEfficiency > 0.85f )
+	{
+		Log( "high\n- There's a bit of room for small details." );
+	}
+	else if ( luxelEfficiency > 0.75f )
+	{
+		Log( "medium\n- There's some room for small and medium details." );
+	}
+	else if ( luxelEfficiency > 0.6f )
+	{
+		Log( "low\n- There's enough room for various details." );
+	}
+	else if ( luxelEfficiency > 0.3f )
+	{
+		Log( "pretty low\n- There's a lot of room for all kinds of details, small and large." );
+	}
+	else
+	{
+		Log( "super low\n- This is perfectly normal for small test maps. Don't mind it." );
+	}
+	Log( "\n" );
+
+	Log( "Occupied lightmap efficiency: " );
+	if ( texelEfficiency > 0.75f )
+	{
+		Log( "very good\n- This means AllocBlock won't be filled fast, don't worry about it." );
+	}
+	else if ( texelEfficiency > 0.58f )
+	{
+		Log( "good\n- Balanced levels of lightmap fragmentation, AllocBlock fillrate normal." );
+	}
+	else if ( texelEfficiency > 0.45f )
+	{
+		Log( "average\n- This means you're wasting some lightmap pixels, but it's okay. AllocBlock fillrate a tad faster." );
+	}
+	else if ( texelEfficiency > 0.32f )
+	{
+		Log( "bad\n- AllocBlock fillrate faster than usual due to wacky geometry." );
+	}
+	else
+	{
+		Log( "pretty bad\n- AllocBlock will fill very fast. Please optimise." );
+	}
+	Log( "\n" );
+}
+
 // =====================================================================================
 //  PrintBSPFileSizes
 //      Dumps info about current file
@@ -1072,8 +1237,30 @@ void            PrintBSPFileSizes()
 	}
 	else
 	{
-	totalmemory += ArrayUsage ("* AllocBlock", numallocblocks, maxallocblocks, 0);
+		totalmemory += ArrayUsage ("* AllocBlock", numallocblocks, maxallocblocks, 0);
 	}
+
+	Log( "Summary of lightmap fill efficiency:\n" );
+	for ( int i = 0; i < 64; i++ )
+	{
+		int efficiency = gLightmapEfficiencies[i].pixelEfficiency * 100.0f;
+		int uvEfficiency = gLightmapEfficiencies[i].uvEfficiency * 100.0f;
+		// This block isn't filled at all
+		if ( efficiency < 0.0f )
+		{
+			break;
+		}
+
+		Log( "   * Block %i: %i%% luxels (%i%% texels)\n",
+			i, efficiency, uvEfficiency );
+	}
+	float averageEfficiency = gLightmapEfficiencyAverage.pixelEfficiency;
+	float averageAreaEfficiency = gLightmapEfficiencyAverage.uvEfficiency;
+	
+	Log( "Average: %i%% luxels (%i%% texels)\n",
+		int( averageEfficiency * 100.0f ), int( averageAreaEfficiency * 100.0f ) );
+
+	PrintLightmapEfficiency( averageEfficiency, averageAreaEfficiency );
 
     Log("%i textures referenced\n", numtextures);
 
