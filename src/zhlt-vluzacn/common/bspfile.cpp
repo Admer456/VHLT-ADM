@@ -815,8 +815,8 @@ lightmapblock_t;
 
 struct LightmapEfficiency
 {
-	float pixelEfficiency{ -1.0f };
-	float uvEfficiency{ -1.0f };
+	float luxelOccupancy{ -1.0f };
+	float texelOccupancy{ -1.0f };
 };
 
 constexpr size_t MaxLightmaps = 64U;
@@ -841,13 +841,13 @@ struct LightmapBlockTracker final
 	{
 		uvExtents += addedExtents;
 
-		uvEfficiency = float( uvExtents ) / (LightmapSizeAbsolute * LightmapSizeAbsolute);
+		texelOccupancy = float( uvExtents ) / (LightmapSizeAbsolute * LightmapSizeAbsolute);
 	}
 
 	// UV efficiency is calculated as:
 	// (true extents) / ((128 * 128) * 64)
 	// It gives us a more accurate image
-	float uvEfficiency = -1.0f;
+	float texelOccupancy = -1.0f;
 	int uvExtents = 0;
 	
 	// Lightmap efficiency is calculated as:
@@ -975,8 +975,8 @@ int CountBlocks ()
 		DoAllocBlock (blocks, (extents[0] / TEXTURE_STEP) + 1, (extents[1] / TEXTURE_STEP) + 1, realExtents);
 	}
 
-	gLightmapEfficiencyAverage.pixelEfficiency = 0.0f;
-	gLightmapEfficiencyAverage.uvEfficiency = 0.0f;
+	gLightmapEfficiencyAverage.luxelOccupancy = 0.0f;
+	gLightmapEfficiencyAverage.texelOccupancy = 0.0f;
 
 	int count = 0;
 	lightmapblock_t *next;
@@ -986,13 +986,13 @@ int CountBlocks ()
 		{
 			if ( count < 64 )
 			{
-				gLightmapEfficiencies[count].pixelEfficiency = gLightmapTracking[blocks].efficiency;
-				gLightmapEfficiencies[count].uvEfficiency = gLightmapTracking[blocks].uvEfficiency;
+				gLightmapEfficiencies[count].luxelOccupancy = gLightmapTracking[blocks].efficiency;
+				gLightmapEfficiencies[count].texelOccupancy = gLightmapTracking[blocks].texelOccupancy;
 			
-				if ( gLightmapEfficiencies[count].pixelEfficiency >= 0.0f )
+				if ( gLightmapEfficiencies[count].luxelOccupancy >= 0.0f )
 				{
-					gLightmapEfficiencyAverage.pixelEfficiency += gLightmapEfficiencies[count].pixelEfficiency;
-					gLightmapEfficiencyAverage.uvEfficiency += gLightmapEfficiencies[count].uvEfficiency;
+					gLightmapEfficiencyAverage.luxelOccupancy += gLightmapEfficiencies[count].luxelOccupancy;
+					gLightmapEfficiencyAverage.texelOccupancy += gLightmapEfficiencies[count].texelOccupancy;
 				}
 			}
 
@@ -1009,7 +1009,7 @@ int CountBlocks ()
 	int efficiencyCount = 0;
 	for ( const auto& efficiency : gLightmapEfficiencies )
 	{
-		if ( efficiency.pixelEfficiency >= 0.0f )
+		if ( efficiency.luxelOccupancy >= 0.0f )
 		{
 			efficiencyCount++;
 		}
@@ -1017,8 +1017,8 @@ int CountBlocks ()
 
 	if ( efficiencyCount > 1 )
 	{
-		gLightmapEfficiencyAverage.pixelEfficiency /= float( efficiencyCount );
-		gLightmapEfficiencyAverage.uvEfficiency /= float( efficiencyCount );
+		gLightmapEfficiencyAverage.luxelOccupancy /= float( efficiencyCount );
+		gLightmapEfficiencyAverage.texelOccupancy /= float( efficiencyCount );
 	}
 
 	return count;
@@ -1143,7 +1143,7 @@ static void PrintLightmapEfficiency( float luxelEfficiency, float texelEfficienc
 {
 	texelEfficiency /= luxelEfficiency;
 
-	Log( "Lightmap occupancy: " );
+	Log( "Luxel occupancy: " );
 	if ( luxelEfficiency > 0.95f )
 	{
 		Log( "very high\n- Squeezing in any new details will generate new blocks." );
@@ -1170,7 +1170,7 @@ static void PrintLightmapEfficiency( float luxelEfficiency, float texelEfficienc
 	}
 	Log( "\n" );
 
-	Log( "Occupied lightmap efficiency: " );
+	Log( "Occupied luxel efficiency: " );
 	if ( texelEfficiency > 0.75f )
 	{
 		Log( "very good\n- This means AllocBlock won't be filled fast, don't worry about it." );
@@ -1242,11 +1242,12 @@ void            PrintBSPFileSizes()
 
 	if ( numallocblocks )
 	{
-		Log( "Summary of lightmap fill efficiency:\n" );
+		Log( "=============================================\n" );
+		Log( "Summary of lightmapping efficiency:\n" );
 		for ( int i = 0; i < 64; i++ )
 		{
-			int efficiency = gLightmapEfficiencies[i].pixelEfficiency * 100.0f;
-			int uvEfficiency = gLightmapEfficiencies[i].uvEfficiency * 100.0f;
+			int efficiency = gLightmapEfficiencies[i].luxelOccupancy * 100.0f;
+			int texelOccupancy = gLightmapEfficiencies[i].texelOccupancy * 100.0f;
 			// This block isn't filled at all
 			if ( efficiency < 0.0f )
 			{
@@ -1254,15 +1255,17 @@ void            PrintBSPFileSizes()
 			}
 
 			Log( "   * Block %i: %i%% luxels (%i%% texels)\n",
-				i, efficiency, uvEfficiency );
+				i, efficiency, texelOccupancy );
 		}
-		float averageEfficiency = gLightmapEfficiencyAverage.pixelEfficiency;
-		float averageAreaEfficiency = gLightmapEfficiencyAverage.uvEfficiency;
+		float averageLuxelOccupancy = gLightmapEfficiencyAverage.luxelOccupancy;
+		float averageTexelOccupancy = gLightmapEfficiencyAverage.texelOccupancy;
 
 		Log( "Average: %i%% luxels (%i%% texels)\n",
-			int( averageEfficiency * 100.0f ), int( averageAreaEfficiency * 100.0f ) );
+			int( averageLuxelOccupancy * 100.0f ), int( averageTexelOccupancy * 100.0f ) );
 
-		PrintLightmapEfficiency( averageEfficiency, averageAreaEfficiency );
+		PrintLightmapEfficiency( averageLuxelOccupancy, averageTexelOccupancy );
+
+		Log( "=============================================\n" );
 	}
 
     Log("%i textures referenced\n", numtextures);
