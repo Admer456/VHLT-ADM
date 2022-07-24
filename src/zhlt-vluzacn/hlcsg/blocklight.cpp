@@ -14,13 +14,13 @@ namespace BlockLight
 {
 	void MarkSide( int index, side_t* side )
 	{
-		gBlockLightSides[index] = *side;
-		Log( "## Added side %i to blocklights\n", index );
+		//gBlockLightSides[index] = *side;
+		//Log( "## Added side %i to blocklights\n", index );
 	}
 
 	void MarkBrush( brush_t* brush )
 	{
-		gBlockLightBrushes.push_back( *brush );
-		Log( "## Added %ith brush to blocklights\n", gBlockLightBrushes.size() );
+		//gBlockLightBrushes.push_back( *brush );
+		//Log( "## Added %ith brush to blocklights\n", gBlockLightBrushes.size() );
 	}
 }
