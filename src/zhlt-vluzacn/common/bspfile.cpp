@@ -1144,34 +1144,34 @@ static void PrintLightmapEfficiency( float luxelEfficiency, float texelEfficienc
 {
 	texelEfficiency /= luxelEfficiency;
 
-	Log( "Luxel occupancy: " );
+	Log( "Current lightmap fullness: " );
 	if ( luxelEfficiency > 0.95f )
 	{
-		Log( "very high\n- Squeezing in any new details will generate new blocks." );
+		Log( "very high (95+)\n- Squeezing in any new details will generate new blocks." );
 	}
 	else if ( luxelEfficiency > 0.85f )
 	{
-		Log( "high\n- There's a bit of room for small details." );
+		Log( "high (85+)\n- There's a bit of room for small details before the next AllocBlock." );
 	}
 	else if ( luxelEfficiency > 0.75f )
 	{
-		Log( "medium\n- There's some room for small and medium details." );
+		Log( "medium (75+)\n- There's some room for small and medium details." );
 	}
 	else if ( luxelEfficiency > 0.6f )
 	{
-		Log( "low\n- There's enough room for various details." );
+		Log( "low (60+)\n- There's enough room for various details." );
 	}
 	else if ( luxelEfficiency > 0.3f )
 	{
-		Log( "pretty low\n- There's a lot of room for all kinds of details, small and large." );
+		Log( "pretty low (30+)\n- There's a lot of room for all kinds of details, small and large." );
 	}
 	else
 	{
-		Log( "super low\n- This is perfectly normal for small test maps. Don't mind it." );
+		Log( "super low\n- This is perfectly normal for small/test maps. Don't mind it." );
 	}
 	Log( "\n" );
 
-	Log( "Occupied luxel efficiency: " );
+	Log( "Luxel fragmentation: " );
 	if ( texelEfficiency > 0.75f )
 	{
 		Log( "very good\n- This means AllocBlock won't be filled fast, don't worry about it." );
@@ -1182,11 +1182,11 @@ static void PrintLightmapEfficiency( float luxelEfficiency, float texelEfficienc
 	}
 	else if ( texelEfficiency > 0.45f )
 	{
-		Log( "average\n- This means you're wasting some lightmap pixels, but it's okay. AllocBlock fillrate a tad faster." );
+		Log( "average\n- This means you're wasting some lightmap pixels due to small faces, but it's okay. AllocBlock will be filled a tad faster." );
 	}
 	else if ( texelEfficiency > 0.32f )
 	{
-		Log( "bad\n- AllocBlock fillrate faster than usual due to wacky geometry." );
+		Log( "bad\n- AllocBlock is filled faster than usual due to wacky geometry and small faces." );
 	}
 	else
 	{
