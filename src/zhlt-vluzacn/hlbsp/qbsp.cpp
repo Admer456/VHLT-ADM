@@ -16,6 +16,7 @@
 #include <thread>
 
 #include "bsp5.h"
+#include "lightmap_report.h"
 
 /*
 
@@ -1891,6 +1892,21 @@ int             main(const int argc, char** argv)
 				Usage();
 			}
 		}
+        else if ( !strcasecmp( argv[i], "-lightmap-report" ) )
+        {
+            int value = atoi( argv[++i] );
+
+            if ( value < LMREPORT_NONE || value > LMREPORT_VERBOSE )
+            {
+                Log( "Warning: the value you put for '-lightmap-report' is not right.\n" );
+                Log( "You can only use 0 (none), 1 (basic) and 2 (verbose).\n" );
+                Log( "We're gonna proceed with the default value of 0.\n" );
+                value = LMREPORT_NONE;
+            }
+
+            g_lightmapReportLevel = value;
+        }
+
         else if (argv[i][0] == '-')
         {
             Log("Unknown option \"%s\"\n", argv[i]);

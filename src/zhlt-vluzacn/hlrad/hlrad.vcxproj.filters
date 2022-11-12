@@ -152,5 +152,8 @@
     <ClInclude Include="..\common\winding.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\common\lightmap_report.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
