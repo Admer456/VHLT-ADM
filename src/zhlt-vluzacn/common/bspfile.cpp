@@ -7,6 +7,7 @@
 #include "bspfile.h"
 #include "scriplib.h"
 #include "blockmem.h"
+#include "lightmap_report.h"
 
 //=============================================================================
 
@@ -1240,22 +1241,25 @@ void            PrintBSPFileSizes()
 		totalmemory += ArrayUsage ("* AllocBlock", numallocblocks, maxallocblocks, 0);
 	}
 
-	if ( numallocblocks )
+	if ( numallocblocks && g_lightmapReportLevel >= LMREPORT_BASIC )
 	{
 		Log( "=============================================\n" );
 		Log( "Summary of lightmapping efficiency:\n" );
-		for ( int i = 0; i < 64; i++ )
+		if ( g_lightmapReportLevel >= LMREPORT_VERBOSE )
 		{
-			int efficiency = gLightmapEfficiencies[i].luxelOccupancy * 100.0f;
-			int texelOccupancy = gLightmapEfficiencies[i].texelOccupancy * 100.0f;
-			// This block isn't filled at all
-			if ( efficiency < 0.0f )
+			for ( int i = 0; i < 64; i++ )
 			{
-				break;
-			}
+				int efficiency = gLightmapEfficiencies[i].luxelOccupancy * 100.0f;
+				int texelOccupancy = gLightmapEfficiencies[i].texelOccupancy * 100.0f;
+				// This block isn't filled at all
+				if ( efficiency < 0.0f )
+				{
+					break;
+				}
 
-			Log( "   * Block %i: %i%% luxels (%i%% texels)\n",
-				i, efficiency, texelOccupancy );
+				Log( "   * Block %i: %i%% luxels (%i%% texels)\n",
+					i, efficiency, texelOccupancy );
+			}
 		}
 		float averageLuxelOccupancy = gLightmapEfficiencyAverage.luxelOccupancy;
 		float averageTexelOccupancy = gLightmapEfficiencyAverage.texelOccupancy;
@@ -1263,7 +1267,7 @@ void            PrintBSPFileSizes()
 		Log( "Average: %i%% luxels (%i%% texels)\n",
 			int( averageLuxelOccupancy * 100.0f ), int( averageTexelOccupancy * 100.0f ) );
 
-		PrintLightmapEfficiency( averageLuxelOccupancy, averageTexelOccupancy );
+		PrintLightmapEfficiency( gLightmapEfficiencies[numallocblocks-1].luxelOccupancy, averageTexelOccupancy);
 
 		Log( "=============================================\n" );
 	}
