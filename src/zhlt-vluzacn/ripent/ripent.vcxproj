@@ -69,6 +69,7 @@
       <ProgramDataBaseFileName>.\Release\</ProgramDataBaseFileName>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <WholeProgramOptimization>true</WholeProgramOptimization>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Midl>
       <TypeLibraryName>.\Release\ripent.tlb</TypeLibraryName>
@@ -110,6 +111,7 @@
       <ProgramDataBaseFileName>.\Release_x64\</ProgramDataBaseFileName>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <WholeProgramOptimization>true</WholeProgramOptimization>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Midl>
       <TypeLibraryName>.\Release_x64\ripent.tlb</TypeLibraryName>
