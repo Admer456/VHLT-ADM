@@ -71,7 +71,7 @@ bool            g_bLeaked = false;
 int             g_subdivide_size = DEFAULT_SUBDIVIDE_SIZE;
 
 bool            g_bUseNullTex = DEFAULT_NULLTEX; // "-nonulltex"
-
+bool			g_bLeaklessMode = false;
 
 
 bool g_nohull2 = false;
@@ -1124,6 +1124,57 @@ static brush_t *ReadBrushes (FILE *file)
 	return brushes;
 }
 
+static void RemoveNodrawSurfaces( surfchain_t* surfaces, brush_t* detailBrushes )
+{
+	if ( g_hullnum )
+	{
+		Verbose( "It's clippin' time!!!\n" );
+	}
+
+	surface_t* currentSurface = surfaces->surfaces;
+	while ( currentSurface )
+	{
+		face_t* currentFace = currentSurface->faces;
+		face_t* previousFace = nullptr;
+		while ( currentFace )
+		{  // Bruh... it seems no face has a texture when it's writing the cliphulls
+			const char* textureName = GetTextureByNumber( currentFace->texturenum );
+			if ( !strcasecmp( textureName, "null" ) || currentFace->texturenum == -1 )
+			{
+				//currentFace->contents = CONTENTS_SOLID;
+				currentFace->facestyle = face_discardable;
+
+				//if ( previousFace )
+				//{
+				//	face_t* nextFace = currentFace->next;
+				//	FreeFace( currentFace );
+				//	previousFace->next = nextFace;
+				//	currentFace = nextFace;
+				//
+				//	Log( "Removed a null face" );
+				//
+				//	continue;
+				//}
+				//else
+				//{
+				//	Log( "Removed a null face" );
+				//	currentSurface->faces = currentFace->next;
+				//	FreeFace( currentFace );
+				//	currentFace = currentSurface->faces;
+				//}
+			}
+
+			previousFace = currentFace;
+			currentFace = currentFace->next;
+		}
+
+		currentSurface = currentSurface->next;
+	}
+}
+
+// outside.cpp
+extern bool RecursiveFillOutside( node_t* l, const bool fill );
+extern void OutsideMakeValid();
 
 // =====================================================================================
 //  ProcessModel
@@ -1183,21 +1234,36 @@ static bool     ProcessModel()
 		}
 	}
 
+	if ( g_bLeaklessMode )
+	{
+		RemoveNodrawSurfaces( surfs, detailbrushes );
+	}
+
     // SolidBSP generates a node tree
     nodes = SolidBSP(surfs,
 		detailbrushes,
 		modnum==0);
 
-    // build all the portals in the bsp tree
-    // some portals are solid polygons, and some are paths to other leafs
-    if (g_nummodels == 1 && !g_nofill)                       // assume non-world bmodels are simple
-    {
-		if (!g_noinsidefill)
-			FillInside (nodes);
-        nodes = FillOutside(nodes, (g_bLeaked != true), 0);                  // make a leakfile if bad
-    }
-
-    FreePortals(nodes);
+	if ( !g_bLeaklessMode )
+	{
+		// build all the portals in the bsp tree
+		// some portals are solid polygons, and some are paths to other leafs
+		if ( g_nummodels == 1 && !g_nofill )                       // assume non-world bmodels are simple
+		{
+			if ( !g_noinsidefill )
+				FillInside( nodes );
+			nodes = FillOutside( nodes, (g_bLeaked != true), 0 );                  // make a leakfile if bad
+		}
+	    FreePortals(nodes);
+	}
+	else
+	{
+		if ( g_nummodels == 1 )
+		{
+			FillInside( nodes );
+			WritePortalfile( nodes );
+		}
+	}
 
     // fix tjunctions
     tjunc(nodes);
@@ -1296,28 +1362,58 @@ static bool     ProcessModel()
 				}
 			}
 		}
-        nodes = SolidBSP(surfs,
+		if ( g_bLeaklessMode )
+		{
+			RemoveNodrawSurfaces( surfs, detailbrushes );
+		}
+
+		nodes = SolidBSP(surfs,
 			detailbrushes, 
 			modnum==0);
-        if (g_nummodels == 1 && !g_nofill)                   // assume non-world bmodels are simple
-        {
-            nodes = FillOutside(nodes, (g_bLeaked != true), g_hullnum);
-        }
-        FreePortals(nodes);
-		/*
-			KGP 12/31/03 - need to test that the head clip node isn't empty; if it is
-			we need to set model->headnode equal to the content type of the head, or create
-			a trivial single-node case where the content type is the same for both leaves
-			if setting the content type is invalid.
-		*/
-		if(nodes->planenum == -1) //empty!
+
+		if ( !g_bLeaklessMode )
 		{
-			model->headnode[g_hullnum] = nodes->contents;
+			if ( g_nummodels == 1 && !g_nofill )                   // assume non-world bmodels are simple
+			{
+				nodes = FillOutside( nodes, (g_bLeaked != true), g_hullnum );
+			}
+			FreePortals( nodes );
+
+			/*
+				KGP 12/31/03 - need to test that the head clip node isn't empty; if it is
+				we need to set model->headnode equal to the content type of the head, or create
+				a trivial single-node case where the content type is the same for both leaves
+				if setting the content type is invalid.
+			*/
+			if ( nodes->planenum == -1 ) //empty!
+			{
+				model->headnode[g_hullnum] = nodes->contents;
+			}
+			else
+			{
+				model->headnode[g_hullnum] = g_numclipnodes;
+				WriteClipNodes( nodes );
+			}
 		}
 		else
 		{
-	        model->headnode[g_hullnum] = g_numclipnodes;
-		    WriteClipNodes(nodes);
+			if ( g_nummodels == 1 )
+			{
+				int s = !(g_outside_node.portals->nodes[1] == &g_outside_node);
+				OutsideMakeValid();
+				RecursiveFillOutside( g_outside_node.portals->nodes[s], true );
+			}
+			FreePortals( nodes );
+		
+			if ( nodes->planenum == -1 )
+			{
+				model->headnode[g_hullnum] = nodes->contents;
+			}
+			else
+			{
+				model->headnode[g_hullnum] = g_numclipnodes;
+				WriteClipNodes( nodes );
+			}
 		}
     }
 	skipclip:
@@ -1906,7 +2002,10 @@ int             main(const int argc, char** argv)
 
             g_lightmapReportLevel = value;
         }
-
+		else if ( !strcasecmp( argv[i], "-leakless" ) )
+		{
+			g_bLeaklessMode = true;
+		}
         else if (argv[i][0] == '-')
         {
             Log("Unknown option \"%s\"\n", argv[i]);
