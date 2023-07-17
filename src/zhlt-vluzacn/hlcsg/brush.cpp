@@ -120,7 +120,7 @@ const char* GetClipTypeString(cliptype ct)
 //  Called to add any and all clip hull planes by the new ExpandBrush.
 // =====================================================================================
 
-void AddHullPlane(brushhull_t* hull, const vec_t* const normal, const vec_t* const origin, const bool check_planenum)
+void AddHullPlane(brushhull_t* hull, const vec_t* const normal, const vec_t* const origin, const bool check_planenum, int texInfo = -1)
 {
 	int planenum = FindIntPlane(normal,origin);
 	//check to see if this plane is already in the brush (optional to speed
@@ -140,8 +140,8 @@ void AddHullPlane(brushhull_t* hull, const vec_t* const normal, const vec_t* con
 	new_face->plane = &g_mapplanes[new_face->planenum];
 	new_face->next = hull->faces;
 	new_face->contents = CONTENTS_EMPTY;
+	new_face->texinfo = texInfo;
 	hull->faces = new_face;
-	new_face->texinfo = -1;
 }
 
 // =====================================================================================
