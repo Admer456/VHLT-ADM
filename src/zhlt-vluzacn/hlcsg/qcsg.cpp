@@ -16,6 +16,8 @@
 #include <windows.h> //--vluzacn
 #endif
 
+#include <thread>
+
 /*
 
  NOTES
