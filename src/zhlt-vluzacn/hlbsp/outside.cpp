@@ -148,9 +148,15 @@ static void FillLeaf (node_t *l)
 	l->contents = CONTENTS_SOLID;
 	l->planenum = -1;
 }
+
+void OutsideMakeValid()
+{
+	valid++;
+}
+
 static int      hit_occupied;
 static int      backdraw;
-static bool     RecursiveFillOutside(node_t* l, const bool fill)
+bool     RecursiveFillOutside(node_t* l, const bool fill)
 {
     portal_t*       p;
     int             s;
