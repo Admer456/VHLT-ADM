@@ -178,19 +178,19 @@ void AddHullPlane(brushhull_t* hull, const vec_t* const normal, const vec_t* con
 //     cliptype          simple    precise     legacy normalized   smallest
 //     clipnodecount        971       1089       1202       1232       1000
 
-void ExpandBrushWithHullBrush (const brush_t *brush, const brushhull_t *hull0, const hullbrush_t *hb, brushhull_t *hull)
+void ExpandBrushWithHullBrush (const brush_t *brush, const brushhull_t *hull0, const hullbrush_t *hullBrush, brushhull_t *hull)
 {
-	const hullbrushface_t *hbf;
-	const hullbrushedge_t *hbe;
-	const hullbrushvertex_t *hbv;
+	const hullbrushface_t *hullBrushFace;
+	const hullbrushedge_t *hullBrushEdge;
+	const hullbrushvertex_t *hullBrushVertex;
 	bface_t *f;
 	vec3_t normal;
 	vec3_t origin;
 	bool *axialbevel;
 	bool warned;
 
-	axialbevel = (bool *)malloc (hb->numfaces * sizeof (bool));
-	memset (axialbevel, 0, hb->numfaces * sizeof (bool));
+	axialbevel = (bool *)malloc (hullBrush->numfaces * sizeof (bool));
+	memset (axialbevel, 0, hullBrush->numfaces * sizeof (bool));
 	warned = false;
 	
 	// check for collisions of face-vertex type. face-edge type is also permitted. face-face type is excluded.
@@ -201,9 +201,9 @@ void ExpandBrushWithHullBrush (const brush_t *brush, const brushhull_t *hull0, c
 		VectorCopy (f->plane->origin, brushface.point);
 
 		// check for coplanar hull brush face
-		for (hbf = hb->faces; hbf < hb->faces + hb->numfaces; hbf++)
+		for (hullBrushFace = hullBrush->faces; hullBrushFace < hullBrush->faces + hullBrush->numfaces; hullBrushFace++)
 		{
-			if (-DotProduct (hbf->normal, brushface.normal) < 1 - ON_EPSILON)
+			if (-DotProduct (hullBrushFace->normal, brushface.normal) < 1 - ON_EPSILON)
 			{
 				continue;
 			}
@@ -212,8 +212,8 @@ void ExpandBrushWithHullBrush (const brush_t *brush, const brushhull_t *hull0, c
 			vec_t dotmax;
 			dotmin = BOGUS_RANGE;
 			dotmax = -BOGUS_RANGE;
-			hlassume (hbf->numvertexes >= 1, assume_first);
-			for (vec3_t *v = hbf->vertexes; v < hbf->vertexes + hbf->numvertexes; v++)
+			hlassume (hullBrushFace->numvertexes >= 1, assume_first);
+			for (vec3_t *v = hullBrushFace->vertexes; v < hullBrushFace->vertexes + hullBrushFace->numvertexes; v++)
 			{
 				vec_t dot;
 				dot = DotProduct (*v, brushface.normal);
@@ -225,11 +225,11 @@ void ExpandBrushWithHullBrush (const brush_t *brush, const brushhull_t *hull0, c
 				break;
 			}
 		}
-		if (hbf < hb->faces + hb->numfaces)
+		if (hullBrushFace < hullBrush->faces + hullBrush->numfaces)
 		{
 			if (f->bevel)
 			{
-				axialbevel[hbf - hb->faces] = true;
+				axialbevel[hullBrushFace - hullBrush->faces] = true;
 			}
 			continue; // the same plane will be added in the last stage
 		}
@@ -238,13 +238,13 @@ void ExpandBrushWithHullBrush (const brush_t *brush, const brushhull_t *hull0, c
 		vec3_t bestvertex;
 		vec_t bestdist;
 		bestdist = BOGUS_RANGE;
-		hlassume (hb->numvertexes >= 1, assume_first);
-		for (hbv = hb->vertexes; hbv < hb->vertexes + hb->numvertexes; hbv++)
+		hlassume (hullBrush->numvertexes >= 1, assume_first);
+		for (hullBrushVertex = hullBrush->vertexes; hullBrushVertex < hullBrush->vertexes + hullBrush->numvertexes; hullBrushVertex++)
 		{
-			if (hbv == hb->vertexes || DotProduct (hbv->point, brushface.normal) < bestdist - NORMAL_EPSILON)
+			if (hullBrushVertex == hullBrush->vertexes || DotProduct (hullBrushVertex->point, brushface.normal) < bestdist - NORMAL_EPSILON)
 			{
-				bestdist = DotProduct (hbv->point, brushface.normal);
-				VectorCopy (hbv->point, bestvertex);
+				bestdist = DotProduct (hullBrushVertex->point, brushface.normal);
+				VectorCopy (hullBrushVertex->point, bestvertex);
 			}
 		}
 
@@ -258,7 +258,7 @@ void ExpandBrushWithHullBrush (const brush_t *brush, const brushhull_t *hull0, c
 		{
 			VectorSubtract (brushface.point, bestvertex, origin);
 		}
-		AddHullPlane (hull, normal, origin, true);
+		AddHullPlane (hull, normal, origin, true, f->texinfo);
 	}
 
 	// check for edge-edge type. edge-face type and face-edge type are excluded.
@@ -311,13 +311,13 @@ void ExpandBrushWithHullBrush (const brush_t *brush, const brushhull_t *hull0, c
 			VectorScale (brushedge.delta, len, brushedge.delta);
 
 			// check for each edge in the hullbrush
-			for (hbe = hb->edges; hbe < hb->edges + hb->numedges; hbe++)
+			for (hullBrushEdge = hullBrush->edges; hullBrushEdge < hullBrush->edges + hullBrush->numedges; hullBrushEdge++)
 			{
 				vec_t dot[4];
-				dot[0] = DotProduct (hbe->delta, brushedge.normals[0]);
-				dot[1] = DotProduct (hbe->delta, brushedge.normals[1]);
-				dot[2] = DotProduct (brushedge.delta, hbe->normals[0]);
-				dot[3] = DotProduct (brushedge.delta, hbe->normals[1]);
+				dot[0] = DotProduct (hullBrushEdge->delta, brushedge.normals[0]);
+				dot[1] = DotProduct (hullBrushEdge->delta, brushedge.normals[1]);
+				dot[2] = DotProduct (brushedge.delta, hullBrushEdge->normals[0]);
+				dot[3] = DotProduct (brushedge.delta, hullBrushEdge->normals[1]);
 				if (dot[0] <= ON_EPSILON || dot[1] >= -ON_EPSILON || dot[2] <= ON_EPSILON || dot[3] >= -ON_EPSILON)
 				{
 					continue;
@@ -330,26 +330,27 @@ void ExpandBrushWithHullBrush (const brush_t *brush, const brushhull_t *hull0, c
 				vec3_t e2;
 				VectorCopy (brushedge.delta, e1);
 				VectorNormalize (e1);
-				VectorCopy (hbe->delta, e2);
+				VectorCopy (hullBrushEdge->delta, e2);
 				VectorNormalize (e2);
 				CrossProduct (e1, e2, normal);
 				if (!VectorNormalize (normal))
 				{
 					continue;
 				}
-				VectorSubtract (brushedge.point, hbe->point, origin);
-				AddHullPlane (hull, normal, origin, true);
+				VectorSubtract (brushedge.point, hullBrushEdge->point, origin);
+				AddHullPlane (hull, normal, origin, true, f->texinfo);
 			}
 		}
 	}
 
 	// check for vertex-face type. edge-face type and face-face type are permitted.
-	for (hbf = hb->faces; hbf < hb->faces + hb->numfaces; hbf++)
+	for (hullBrushFace = hullBrush->faces; hullBrushFace < hullBrush->faces + hullBrush->numfaces; hullBrushFace++)
 	{
 		// find the impact point
 		vec3_t bestvertex;
 		vec_t bestdist;
 		bestdist = BOGUS_RANGE;
+		int texInfo = -1;
 		if (!hull0->faces)
 		{
 			continue;
@@ -358,25 +359,26 @@ void ExpandBrushWithHullBrush (const brush_t *brush, const brushhull_t *hull0, c
 		{
 			for (vec3_t *v = f->w->m_Points; v < f->w->m_Points + f->w->m_NumPoints; v++)
 			{
-				if (DotProduct (*v, hbf->normal) < bestdist - NORMAL_EPSILON)
+				if (DotProduct (*v, hullBrushFace->normal) < bestdist - NORMAL_EPSILON)
 				{
-					bestdist = DotProduct (*v, hbf->normal);
+					texInfo = f->texinfo;
+					bestdist = DotProduct (*v, hullBrushFace->normal);
 					VectorCopy (*v, bestvertex);
 				}
 			}
 		}
 
 		// add hull plane for this face
-		VectorSubtract (vec3_origin, hbf->normal, normal);
-		if (axialbevel[hbf - hb->faces])
+		VectorSubtract (vec3_origin, hullBrushFace->normal, normal);
+		if (axialbevel[hullBrushFace - hullBrush->faces])
 		{
 			VectorCopy (bestvertex, origin);
 		}
 		else
 		{
-			VectorSubtract (bestvertex, hbf->point, origin);
+			VectorSubtract (bestvertex, hullBrushFace->point, origin);
 		}
-		AddHullPlane (hull, normal, origin, true);
+		AddHullPlane (hull, normal, origin, true, texInfo);
 	}
 
 	free (axialbevel);
@@ -515,7 +517,7 @@ void ExpandBrush(brush_t* brush, const int hullnum)
 			origin[2] += g_hull_size[hullnum][(normal[2] > 0 ? 1 : 0)][2];
 		}
 
-		AddHullPlane(hull,normal,origin,false);
+		AddHullPlane(hull,normal,origin,false, current_face->texinfo);
 	} //end for loop over all faces
 
 	// step 2: for collision between player edge and brush edge. --vluzacn
@@ -633,7 +635,7 @@ void ExpandBrush(brush_t* brush, const int hullnum)
 						}
 
 						//add the bevel plane to the expanded hull
-						AddHullPlane(hull,normal,origin,true); //double check that this edge hasn't been added yet
+						AddHullPlane(hull,normal,origin,true, current_face->texinfo); //double check that this edge hasn't been added yet
 					}
 				} //end for loop (check for each direction)
 			} //end for loop (over all edges in face)
