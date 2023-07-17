@@ -2061,6 +2061,19 @@ int             main(const int argc, char** argv)
 		{
 			g_nullifytrigger = false;
 		}
+		else if ( !strcasecmp( argv[i], "-debug" ) )
+		{
+			Log( "\n---------------------------------------"
+				"\nDEBUG MODE ACTIVATED"
+				"\nAttach to this process in your debugger"
+				"\n---------------------------------------" );
+
+			for ( int i = 12; i > 0; i-- )
+			{
+				Log( "%i...\n", i );
+				std::this_thread::sleep_for( std::chrono::milliseconds( 1000 ) );
+			}
+		}
         else if (argv[i][0] == '-')
         {
             Log("Unknown option \"%s\"\n", argv[i]);
