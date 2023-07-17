@@ -1126,42 +1126,18 @@ static brush_t *ReadBrushes (FILE *file)
 
 static void RemoveNodrawSurfaces( surfchain_t* surfaces, brush_t* detailBrushes )
 {
-	if ( g_hullnum )
-	{
-		Verbose( "It's clippin' time!!!\n" );
-	}
-
 	surface_t* currentSurface = surfaces->surfaces;
 	while ( currentSurface )
 	{
 		face_t* currentFace = currentSurface->faces;
 		face_t* previousFace = nullptr;
 		while ( currentFace )
-		{  // Bruh... it seems no face has a texture when it's writing the cliphulls
+		{
+			// CSG had to be modified for this to work. It didn't use to output texture info for faces in the 3 clipping hulls.
 			const char* textureName = GetTextureByNumber( currentFace->texturenum );
 			if ( !strcasecmp( textureName, "null" ) || currentFace->texturenum == -1 )
 			{
-				//currentFace->contents = CONTENTS_SOLID;
 				currentFace->facestyle = face_discardable;
-
-				//if ( previousFace )
-				//{
-				//	face_t* nextFace = currentFace->next;
-				//	FreeFace( currentFace );
-				//	previousFace->next = nextFace;
-				//	currentFace = nextFace;
-				//
-				//	Log( "Removed a null face" );
-				//
-				//	continue;
-				//}
-				//else
-				//{
-				//	Log( "Removed a null face" );
-				//	currentSurface->faces = currentFace->next;
-				//	FreeFace( currentFace );
-				//	currentFace = currentSurface->faces;
-				//}
 			}
 
 			previousFace = currentFace;
@@ -1377,43 +1353,33 @@ static bool     ProcessModel()
 			{
 				nodes = FillOutside( nodes, (g_bLeaked != true), g_hullnum );
 			}
-			FreePortals( nodes );
-
-			/*
-				KGP 12/31/03 - need to test that the head clip node isn't empty; if it is
-				we need to set model->headnode equal to the content type of the head, or create
-				a trivial single-node case where the content type is the same for both leaves
-				if setting the content type is invalid.
-			*/
-			if ( nodes->planenum == -1 ) //empty!
-			{
-				model->headnode[g_hullnum] = nodes->contents;
-			}
-			else
-			{
-				model->headnode[g_hullnum] = g_numclipnodes;
-				WriteClipNodes( nodes );
-			}
 		}
 		else
 		{
+			// I am not sure if this is entirely necessary
 			if ( g_nummodels == 1 )
 			{
 				int s = !(g_outside_node.portals->nodes[1] == &g_outside_node);
 				OutsideMakeValid();
 				RecursiveFillOutside( g_outside_node.portals->nodes[s], true );
 			}
-			FreePortals( nodes );
-		
-			if ( nodes->planenum == -1 )
-			{
-				model->headnode[g_hullnum] = nodes->contents;
-			}
-			else
-			{
-				model->headnode[g_hullnum] = g_numclipnodes;
-				WriteClipNodes( nodes );
-			}
+		}
+		FreePortals( nodes );
+
+		/*
+			KGP 12/31/03 - need to test that the head clip node isn't empty; if it is
+			we need to set model->headnode equal to the content type of the head, or create
+			a trivial single-node case where the content type is the same for both leaves
+			if setting the content type is invalid.
+		*/
+		if ( nodes->planenum == -1 ) //empty!
+		{
+			model->headnode[g_hullnum] = nodes->contents;
+		}
+		else
+		{
+			model->headnode[g_hullnum] = g_numclipnodes;
+			WriteClipNodes( nodes );
 		}
     }
 	skipclip:
